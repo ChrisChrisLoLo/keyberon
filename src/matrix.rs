@@ -1,6 +1,7 @@
 //! Hardware pin switch matrix handling.
 
 use embedded_hal::digital::v2::{InputPin, OutputPin};
+use cortex_m::asm::delay;
 
 /// Describes the hardware-level matrix of switches.
 ///
@@ -48,6 +49,22 @@ where
         }
         Ok(())
     }
+
+
+    fn delay_us(us: u32) {
+        //self.timer.count_down().start(2000000_u32.microseconds());
+        //self.timer.count_down().wait();
+        let ticksPerSecond = 12_000_000u32;
+    
+        let ticksPerMicroSecond = ticksPerSecond/1000000;
+    
+        let iterations = us * 1;
+    
+        // Iterate rather than multiply to prevent buffer overflow
+        for _ in 0..iterations{
+           delay(ticksPerMicroSecond);
+        }
+    }
     /// Scans the matrix and checks which keys are pressed.
     ///
     /// Every row pin in order is pulled low, and then each column
@@ -61,6 +78,10 @@ where
 
         for (ri, row) in (&mut self.rows).iter_mut().enumerate() {
             row.set_low()?;
+            // Hacked in delay to prevent multiple keys from being read
+            // Real fix is to implement code outlined in this issue:
+            // https://github.com/TeXitoi/keyberon/issues/97
+            Self::delay_us(10);
             for (ci, col) in (&self.cols).iter().enumerate() {
                 if col.is_low()? {
                     keys[ri][ci] = true;
@@ -69,6 +90,20 @@ where
             row.set_high()?;
         }
         Ok(keys)
+        // let mut keys = [[false; CS]; RS];
+
+        // for (ci, col) in (&mut self.cols).iter_mut().enumerate() {
+        //     col.set_high()?;
+        //     Self::delay_us(50);
+        //     for (ri, row) in (&self.rows).iter().enumerate() {
+        //         if row.is_high()? {
+        //             keys[ri][ci] = true;
+        //         }
+        //     }
+        //     Self::delay_us(50);
+        //     col.set_low()?;
+        // }
+        // Ok(keys)
     }
 }
 
